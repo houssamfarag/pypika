@@ -172,8 +172,14 @@ class Term(Node):
     def regexp(self, pattern: str) -> "BasicCriterion":
         return BasicCriterion(Matching.regexp, self, self.wrap_constant(pattern))
 
+    def not_regexp(self, pattern: str) -> "BasicCriterion":
+        return BasicCriterion(Matching.not_regexp, self, self.wrap_constant(pattern))
+
     def between(self, lower: Any, upper: Any) -> "BetweenCriterion":
         return BetweenCriterion(self, self.wrap_constant(lower), self.wrap_constant(upper))
+
+    def not_between(self, lower: Any, upper: Any) -> "NotBetweenCriterion":
+        return NotBetweenCriterion(self, self.wrap_constant(lower), self.wrap_constant(upper))
 
     def from_to(self, start: Any, end: Any) -> "PeriodCriterion":
         return PeriodCriterion(self, self.wrap_constant(start), self.wrap_constant(end))
@@ -878,6 +884,31 @@ class BetweenCriterion(RangeCriterion):
     def get_sql(self, **kwargs: Any) -> str:
         # FIXME escape
         sql = "{term} BETWEEN {start} AND {end}".format(
+            term=self.term.get_sql(**kwargs),
+            start=self.start.get_sql(**kwargs),
+            end=self.end.get_sql(**kwargs),
+        )
+        return format_alias_sql(sql, self.alias, **kwargs)
+
+
+class NotBetweenCriterion(RangeCriterion):
+    @builder
+    def replace_table(self, current_table: Optional["Table"], new_table: Optional["Table"]) -> "BetweenCriterion":
+        """
+        Replaces all occurrences of the specified table with the new table. Useful when reusing fields across queries.
+
+        :param current_table:
+            The table to be replaced.
+        :param new_table:
+            The table to replace with.
+        :return:
+            A copy of the criterion with the tables replaced.
+        """
+        self.term = self.term.replace_table(current_table, new_table)
+
+    def get_sql(self, **kwargs: Any) -> str:
+        # FIXME escape
+        sql = "{term} NOT BETWEEN {start} AND {end}".format(
             term=self.term.get_sql(**kwargs),
             start=self.start.get_sql(**kwargs),
             end=self.end.get_sql(**kwargs),
